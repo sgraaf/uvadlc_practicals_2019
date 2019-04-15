@@ -175,10 +175,10 @@ def train():
   metric_names = ['train_acc', 'train_loss', 'test_acc', 'test_loss']
   df = pd.DataFrame(combined_metrics, columns=metric_names)
   df.to_csv(output_dir / 'mlp_pytorch.csv')
-  np.savetxt(output_dir / 'train_acc.csv', train_acc, delimiter=',')
-  np.savetxt(output_dir / 'train_loss.csv', train_loss, delimiter=',')
-  np.savetxt(output_dir / 'test_acc.csv', test_acc, delimiter=',')
-  np.savetxt(output_dir / 'test_loss.csv', test_loss, delimiter=',')
+  # np.savetxt(output_dir / 'train_acc.csv', train_acc, delimiter=',')
+  # np.savetxt(output_dir / 'train_loss.csv', train_loss, delimiter=',')
+  # np.savetxt(output_dir / 'test_acc.csv', test_acc, delimiter=',')
+  # np.savetxt(output_dir / 'test_loss.csv', test_loss, delimiter=',')
   # raise NotImplementedError
   ########################
   # END OF YOUR CODE    #
