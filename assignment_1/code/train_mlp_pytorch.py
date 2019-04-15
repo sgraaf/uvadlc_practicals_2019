@@ -9,8 +9,11 @@ from __future__ import print_function
 import argparse
 import numpy as np
 import os
+from pathlib import Path
 from mlp_pytorch import MLP
 import cifar10_utils
+
+import torch
 
 # Default constants
 DNN_HIDDEN_UNITS_DEFAULT = '100'
@@ -38,14 +41,15 @@ def accuracy(predictions, targets):
     accuracy: scalar float, the accuracy of predictions,
               i.e. the average correct predictions over the whole batch
   
-  TODO:
+  TODONE:
   Implement accuracy computation.
   """
 
   ########################
   # PUT YOUR CODE HERE  #
   #######################
-  raise NotImplementedError
+  accuracy = (predictions.argmax(dim=1) == targets.argmax(dim=1)).float().mean().item()
+  # raise NotImplementedError
   ########################
   # END OF YOUR CODE    #
   #######################
@@ -56,7 +60,7 @@ def train():
   """
   Performs training and evaluation of MLP model. 
 
-  TODO:
+  TODONE:
   Implement training and evaluation of MLP model. Evaluate your model on the whole test set each eval_freq iterations.
   """
 
@@ -75,7 +79,102 @@ def train():
   ########################
   # PUT YOUR CODE HERE  #
   #######################
-  raise NotImplementedError
+  device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+  
+  learning_rate = FLAGS.learning_rate
+  max_steps     = FLAGS.max_steps
+  batch_size    = FLAGS.batch_size
+  eval_freq     = FLAGS.eval_freq
+  data_dir      = FLAGS.data_dir
+
+  # load the cifar10 data
+  cifar10 = cifar10_utils.get_cifar10(data_dir)
+  train = cifar10['train']
+  test = cifar10['test']
+  test_images, test_labels = test.images, test.labels
+  
+  # obtain the dimensions of the data
+  n_test_images, depth, height, width = test_images.shape
+  n_inputs = height * width * depth
+  n_classes = test_labels.shape[1]
+
+  # reshape the test images and send to device
+  test_images = test_images.reshape((n_test_images, n_inputs))
+  # test_images_torch = torch.from_numpy(test_images).to(device)
+  test_images_torch = torch.tensor(test_images, dtype=torch.float, device=device)
+  test_labels_torch = torch.tensor(test_labels, dtype=torch.long, device=device)
+
+  # initialize the MLP, loss function and optimizer
+  mlp = MLP(n_inputs, dnn_hidden_units, n_classes).to(device)
+  loss_function = torch.nn.CrossEntropyLoss()
+  optimizer = torch.optim.SGD(mlp.parameters(), lr=learning_rate)
+
+  # initialize relevant metrics
+  train_acc = []
+  train_loss = []
+  test_acc = []
+  test_loss = []
+
+  # train the MLP
+  for step in range(max_steps):
+    # obtain a new mini-batch and reshape the images and convert to float send to device
+    train_images, train_labels = train.next_batch(batch_size)
+    train_images = train_images.reshape((batch_size, n_inputs))
+    train_images_torch = torch.tensor(train_images, dtype=torch.float, device=device)
+    train_labels_torch = torch.tensor(train_labels, dtype=torch.long, device=device)
+
+    # reset the optimizer gradient to zero
+    optimizer.zero_grad()
+
+    # forward pass the mini-batch
+    predictions = mlp.forward(train_images_torch)
+    loss = loss_function.forward(predictions, train_labels_torch.argmax(dim=1))
+    
+    # backwards propogate the loss
+    loss.backward()
+    optimizer.step()
+
+    # evaluate the MLP
+    if (step % eval_freq == 0) or (step == max_steps - 1):
+      # append train data metrics
+      train_acc.append(accuracy(predictions, train_labels_torch))
+      train_loss.append(loss)
+
+      # evaluate the MLP on the test data
+      test_predictions = mlp.forward(test_images_torch)
+      
+      # append the test data metrics
+      test_acc.append(accuracy(test_predictions, test_labels_torch))
+      test_loss.append(loss_function.forward(test_predictions, test_labels_torch.argmax(dim=1)))
+
+      print(f'Step {step:0{len(str(max_steps))}} / {max_steps}:')
+      print(f' Performance on the training data (mini-batch):')
+      print(f'  Accuracy: {train_acc[-1]}')
+      print(f'  Loss: {train_loss[-1]}')
+      print(f' Performance on the testing data (mini-batch):')
+      print(f'  Accuracy: {test_acc[-1]}')
+      print(f'  Loss: {test_loss[-1]}')
+
+      # break if train loss has converged
+      threshold = 1e-6
+      if len(train_loss) > 20:
+        previous_losses = train_loss[-20:-10]
+        current_losses = train_loss[-10:]
+        if (previous_losses - current_losses) < threshold:
+          print(f'Loss has converged early in {step} steps')
+          break
+
+  # save the relevant metrics to disk
+  print('Saving the metrics to disk...')
+  output_dir = Path.cwd().parent / 'output'
+  if not output_dir.exists():
+    output_dir.mkdir(parents=True)
+
+  np.savetxt(output_dir / 'train_acc.csv', train_acc, delimiter=',')
+  np.savetxt(output_dir / 'train_loss.csv', train_loss, delimiter=',')
+  np.savetxt(output_dir / 'test_acc.csv', test_acc, delimiter=',')
+  np.savetxt(output_dir / 'test_loss.csv', test_loss, delimiter=',')
+  # raise NotImplementedError
   ########################
   # END OF YOUR CODE    #
   #######################
