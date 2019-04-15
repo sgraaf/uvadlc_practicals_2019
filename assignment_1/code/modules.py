@@ -16,7 +16,7 @@ class LinearModule(object):
       in_features: size of each input sample
       out_features: size of each output sample
 
-    TODO:
+    TODONE:
     Initialize weights self.params['weight'] using normal distribution with mean = 0 and 
     std = 0.0001. Initialize biases self.params['bias'] with 0. 
     
@@ -26,9 +26,15 @@ class LinearModule(object):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    self.params = {'weight': None, 'bias': None}
-    self.grads = {'weight': None, 'bias': None}
-    raise NotImplementedError
+    self.params = {
+      'weight': np.random.normal(0, 0.0001, (out_features, in_features)), 
+      'bias': np.zeros((out_features, 1))
+    }
+    self.grads = {
+      'weight': np.zeros((out_features, in_features)), 
+      'bias': np.zeros((out_features, 1))
+    }
+    # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -42,7 +48,7 @@ class LinearModule(object):
     Returns:
       out: output of the module
     
-    TODO:
+    TODONE:
     Implement forward pass of the module. 
     
     Hint: You can store intermediate variables inside the object. They can be used in backward pass computation.                                                           #
@@ -51,7 +57,9 @@ class LinearModule(object):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    out = self.params['weight'] @ x.T + self.params['bias']
+    self.x = x
+    # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -67,7 +75,7 @@ class LinearModule(object):
     Returns:
       dx: gradients with respect to the input of the module
     
-    TODO:
+    TODONE:
     Implement backward pass of the module. Store gradient of the loss with respect to 
     layer parameters in self.grads['weight'] and self.grads['bias']. 
     """
@@ -75,7 +83,13 @@ class LinearModule(object):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    # compute dx
+    dx = dout @ self.params['weight']
+
+    # update the weight and bias gradients
+    self.grads['weight'] = dout.T @ self.x
+    self.grads['bias'] = np.sum(dout, axis=0)
+    # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -95,7 +109,7 @@ class ReLUModule(object):
     Returns:
       out: output of the module
     
-    TODO:
+    TODONE:
     Implement forward pass of the module. 
     
     Hint: You can store intermediate variables inside the object. They can be used in backward pass computation.                                                           #
@@ -104,7 +118,9 @@ class ReLUModule(object):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    out = np.maximum(0, x)
+    self.x = x
+    # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -120,14 +136,16 @@ class ReLUModule(object):
     Returns:
       dx: gradients with respect to the input of the module
     
-    TODO:
+    TODONE:
     Implement backward pass of the module.
     """
 
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    # compute dx
+    dx = dout * (self.x > 0)
+    # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################    
@@ -146,7 +164,7 @@ class SoftMaxModule(object):
     Returns:
       out: output of the module
     
-    TODO:
+    TODONE:
     Implement forward pass of the module. 
     To stabilize computation you should use the so-called Max Trick - https://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
     
@@ -156,7 +174,9 @@ class SoftMaxModule(object):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    out =  np.exp(x - x.max()) / np.exp(x - x.max()).sum()
+    self.out = out
+    # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -172,14 +192,27 @@ class SoftMaxModule(object):
     Returns:
       dx: gradients with respect to the input of the module
     
-    TODO:
+    TODONE:
     Implement backward pass of the module.
     """
 
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    # get the softmax dimensions
+    batch_size, features_dimension = self.out.shape
+
+    # create a diagonal tensor with the elements of self.out
+    diag_tensor = np.zeros((batch_size, features_dimension, features_dimension))
+    idxs = np.arange(features_dimension)
+    diag_tensor[:, idxs, idxs] = self.out
+
+    # compute the partial derivative
+    dx_dx_t = diag_tensor - np.einsum('ij, ik -> ijk', self.out, self.out)
+
+    # compute the gradients
+    dx = np.einsum('ij, ijk -> ik', dout, dx_dx_t)
+    # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -200,14 +233,18 @@ class CrossEntropyModule(object):
     Returns:
       out: cross entropy loss
     
-    TODO:
+    TODONE:
     Implement forward pass of the module. 
     """
 
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    self.eps = 1e-10  # introduce very small epsilon to deal with zeroes in x
+    out = - np.sum(y * np.log(x + self.eps), axis=1).mean()
+    # out = - np.log(x + eps)[np.argmax(y)]
+    self.out = out
+    # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -224,14 +261,16 @@ class CrossEntropyModule(object):
     Returns:
       dx: gradient of the loss with the respect to the input x.
     
-    TODO:
+    TODONE:
     Implement backward pass of the module.
     """
 
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    # compute the gradient
+    dx = (- y / (x + self.eps)) / y.shape[0]
+    # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
