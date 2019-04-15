@@ -61,6 +61,14 @@ class MLP(object):
         LinearModule(n_inputs, n_classes),
         SoftMaxModule()
       ]
+    
+    # for module in self.modules:
+    #   print(module.__class__.__name__)
+    #   if isinstance(module, LinearModule):
+    #     params = module.params
+    #     keys = params.keys()
+    #     for key in keys:
+    #       print(f'  {key}: {params[key].shape}')
     # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #

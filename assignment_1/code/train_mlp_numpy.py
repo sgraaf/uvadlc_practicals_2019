@@ -91,7 +91,7 @@ def train():
   test_images, test_labels = test.images, test.labels
   
   # obtain the dimensions of the data
-  n_test_images, height, width, depth = test_images.shape
+  n_test_images, depth, height, width = test_images.shape
   n_inputs = height * width * depth
   n_classes = test_labels.shape[1]
 
@@ -114,7 +114,7 @@ def train():
   for step in range(max_steps):
     # obtain a new mini-batch and reshape the images
     train_images, train_labels = train.next_batch(batch_size)
-    train_images = train_images.reshape(batch_size, n_inputs)
+    train_images = train_images.reshape((batch_size, n_inputs))
 
     # forward pass the mini-batch
     predictions = mlp.forward(train_images)
@@ -128,7 +128,7 @@ def train():
     for module in mlp.modules:
       if hasattr(module, 'grads'):  # if it is a linear module
         module.params['weight'] -= learning_rate * module.grads['weight']
-        module.params['bias'] -= learning_rate * module.grads['bias']
+        module.params['bias'] -= learning_rate * module.grads['bias'].mean()
 
     # evaluate the MLP
     if (step % eval_freq == 0) or (step == max_steps - 1):

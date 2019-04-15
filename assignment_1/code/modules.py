@@ -64,7 +64,7 @@ class LinearModule(object):
     # END OF YOUR CODE    #
     #######################
 
-    return out
+    return out.T
 
   def backward(self, dout):
     """
