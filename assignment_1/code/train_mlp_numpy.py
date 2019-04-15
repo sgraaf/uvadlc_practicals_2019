@@ -9,6 +9,7 @@ from __future__ import print_function
 import argparse
 import numpy as np
 import os
+from pathlib import Path
 from mlp_numpy import MLP
 from modules import CrossEntropyModule
 import cifar10_utils
@@ -39,14 +40,15 @@ def accuracy(predictions, targets):
     accuracy: scalar float, the accuracy of predictions,
               i.e. the average correct predictions over the whole batch
   
-  TODO:
+  TODONE:
   Implement accuracy computation.
   """
 
   ########################
   # PUT YOUR CODE HERE  #
   #######################
-  raise NotImplementedError
+  accuracy = np.mean(np.argmax(predictions, axis=1) == np.argmax(targets, axis=1))
+  # raise NotImplementedError
   ########################
   # END OF YOUR CODE    #
   #######################
@@ -76,7 +78,99 @@ def train():
   ########################
   # PUT YOUR CODE HERE  #
   #######################
-  raise NotImplementedError
+  learning_rate = FLAGS.learning_rate
+  max_steps     = FLAGS.max_steps
+  batch_size    = FLAGS.batch_size
+  eval_freq     = FLAGS.eval_freq
+  data_dir      = FLAGS.data_dir
+
+  # load the cifar10 data
+  cifar10 = cifar10_utils.get_cifar10(data_dir)
+  train = cifar10['train']
+  test = cifar10['test']
+  test_images, test_labels = test.images, test.labels
+  
+  # obtain the dimensions of the data
+  n_test_images, height, width, depth = test_images.shape
+  n_inputs = height * width * depth
+  n_classes = test_labels.shape[1]
+
+  # initialize the MLP
+  mlp = MLP(n_inputs, dnn_hidden_units, n_classes)
+
+  # initialize the loss function
+  loss_function = CrossEntropyModule()
+
+  # initialize relevant metrics
+  train_acc = []
+  train_loss = []
+  test_acc = []
+  test_loss = []
+
+  # reshape the test images
+  test_images = test_images.reshape((n_test_images, n_inputs))
+
+  # train the MLP
+  for step in range(max_steps):
+    # obtain a new mini-batch and reshape the images
+    train_images, train_labels = train.next_batch(batch_size)
+    train_images = train_images.reshape(batch_size, n_inputs)
+
+    # forward pass the mini-batch
+    predictions = mlp.forward(train_images)
+    loss = loss_function.forward(predictions, train_labels)
+    
+    # backwards propogate the loss
+    loss_grad = loss_function.backward(predictions, train_labels)
+    mlp.backward(loss_grad)
+
+    # update the weights and biases of the linear modules of the MLP
+    for module in mlp.modules:
+      if hasattr(module, 'grads'):  # if it is a linear module
+        module.params['weight'] -= learning_rate * module.grads['weight']
+        module.params['bias'] -= learning_rate * module.grads['bias']
+
+    # evaluate the MLP
+    if (step % eval_freq == 0) or (step == max_steps - 1):
+      # append train data metrics
+      train_acc.append(accuracy(predictions, train_labels))
+      train_loss.append(loss)
+
+      # evaluate the MLP on the test data
+      test_predictions = mlp.forward(test_images)
+      
+      # append the test data metrics
+      test_loss.append(loss_function.forward(test_predictions, test_labels))
+      test_acc.append(accuracy(test_predictions, test_labels))
+
+      print(f'Step {step + 1:0{len(str(max_steps))}} / {max_steps}:')
+      print(f'  Performance on the training data (mini-batch):')
+      print(f'    Accuracy: {train_acc[-1]}')
+      print(f'    Loss: {train_loss[-1]}')
+      print(f'  Performance on the testing data (mini-batch):')
+      print(f'    Accuracy: {test_acc[-1]}')
+      print(f'    Loss: {test_loss[-1]}')
+
+      # break if train loss has converged
+      threshold = 1e-6
+      if len(train_loss) > 20:
+        previous_losses = train_loss[-20:-10]
+        current_losses = train_loss[-10:]
+        if (previous_losses - current_losses) < threshold:
+          print(f'Loss has converged early in {step + 1} steps')
+          break
+
+    # save the relevant metrics to disk
+    print('Saving the metrics to disk...')
+    output_dir = Path.cwd().parent / 'output' / 'mlp_numpy'
+    if not output_dir.exists():
+      output_dir.mkdir(parents=True)
+    
+    np.savetxt(output_dir / 'train_acc.csv', train_acc, delimiter=',')
+    np.savetxt(output_dir / 'train_loss.csv', train_loss, delimiter=',')
+    np.savetxt(output_dir / 'test_acc.csv', test_acc, delimiter=',')
+    np.savetxt(output_dir / 'test_loss.csv', test_loss, delimiter=',')
+  # raise NotImplementedError
   ########################
   # END OF YOUR CODE    #
   #######################
