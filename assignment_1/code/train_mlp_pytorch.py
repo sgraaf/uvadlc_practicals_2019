@@ -9,6 +9,7 @@ from __future__ import print_function
 import argparse
 import numpy as np
 import os
+import pandas as pd
 from pathlib import Path
 from mlp_pytorch import MLP
 import cifar10_utils
@@ -170,6 +171,10 @@ def train():
   if not output_dir.exists():
     output_dir.mkdir(parents=True)
 
+  combined_metrics = list(zip(train_acc, train_loss, test_acc, test_loss))
+  metric_names = ['train_acc', 'train_loss', 'test_acc', 'test_loss']
+  df = pd.DataFrame(combined_metrics, columns=metric_names)
+  df.to_csv(output_dir / 'mlp_pytorch.csv')
   np.savetxt(output_dir / 'train_acc.csv', train_acc, delimiter=',')
   np.savetxt(output_dir / 'train_loss.csv', train_loss, delimiter=',')
   np.savetxt(output_dir / 'test_acc.csv', test_acc, delimiter=',')

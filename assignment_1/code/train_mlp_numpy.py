@@ -9,6 +9,7 @@ from __future__ import print_function
 import argparse
 import numpy as np
 import os
+import pandas as pd
 from pathlib import Path
 from mlp_numpy import MLP
 from modules import CrossEntropyModule
@@ -59,7 +60,7 @@ def train():
   """
   Performs training and evaluation of MLP model. 
 
-  TODO:
+  TODONE:
   Implement training and evaluation of MLP model. Evaluate your model on the whole test set each eval_freq iterations.
   """
 
@@ -143,7 +144,6 @@ def train():
       test_acc.append(accuracy(test_predictions, test_labels))
       test_loss.append(loss_function.forward(test_predictions, test_labels))
       
-
       print(f'Step {step + 1:0{len(str(max_steps))}} / {max_steps}:')
       print(f' Performance on the training data (mini-batch):')
       print(f'  Accuracy: {train_acc[-1]}')
@@ -163,14 +163,18 @@ def train():
 
   # save the relevant metrics to disk
   print('Saving the metrics to disk...')
-  output_dir = Path.cwd().parent / 'output' / 'mlp_numpy'
+  output_dir = Path.cwd().parent / 'output'
   if not output_dir.exists():
     output_dir.mkdir(parents=True)
-    
-  np.savetxt(output_dir / 'train_acc.csv', train_acc, delimiter=',')
-  np.savetxt(output_dir / 'train_loss.csv', train_loss, delimiter=',')
-  np.savetxt(output_dir / 'test_acc.csv', test_acc, delimiter=',')
-  np.savetxt(output_dir / 'test_loss.csv', test_loss, delimiter=',')
+  
+  combined_metrics = list(zip(train_acc, train_loss, test_acc, test_loss))
+  metric_names = ['train_acc', 'train_loss', 'test_acc', 'test_loss']
+  df = pd.DataFrame(combined_metrics, columns=metric_names)
+  df.to_csv(output_dir / 'mlp_numpy.csv')  
+  # np.savetxt(output_dir / 'train_acc.csv', train_acc, delimiter=',')
+  # np.savetxt(output_dir / 'train_loss.csv', train_loss, delimiter=',')
+  # np.savetxt(output_dir / 'test_acc.csv', test_acc, delimiter=',')
+  # np.savetxt(output_dir / 'test_loss.csv', test_loss, delimiter=',')
   # raise NotImplementedError
   ########################
   # END OF YOUR CODE    #
