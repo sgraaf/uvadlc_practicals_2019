@@ -29,14 +29,39 @@ class MLP(object):
                  This number is required in order to specify the
                  output dimensions of the MLP
     
-    TODO:
+    TODONE:
     Implement initialization of the network.
     """
 
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    if len(n_hidden) > 0:
+      # add modules for the first hidden layer (from x to h_1)
+      self.modules = [
+        LinearModule(n_inputs, n_hidden[0]),
+        ReLUModule()
+      ]
+
+      # add modules for the intermediate hidden layers (from h_2 to h_n-1)
+      for i in range(len(n_hidden) - 1):
+        self.modules += [
+          LinearModule(n_hidden[i], n_hidden[i + 1]),
+          ReLUModule()
+        ]
+
+      # add modules for the last hidden layer (from h_n to y)
+      self.modules += [
+        LinearModule(n_hidden[-1], n_classes),
+        SoftMaxModule()
+      ]
+    else:
+      # no hidden units, so SLP w/ SoftMax instead of MLP
+      self.modules = [
+        LinearModule(n_inputs, n_classes),
+        SoftMaxModule()
+      ]
+    # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -58,7 +83,13 @@ class MLP(object):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    # pass the input forwards through the modules
+    for module in self.modules:
+      x = module.forward(x)
+    
+    # the output is that of the final module
+    out = x
+    # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -72,14 +103,17 @@ class MLP(object):
     Args:
       dout: gradients of the loss
     
-    TODO:
+    TODONE:
     Implement backward pass of the network.
     """
     
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    # pass the loss gradients backwards through the modules
+    for module in reversed(self.modules):
+      dout = module.backward(dout)
+    # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
