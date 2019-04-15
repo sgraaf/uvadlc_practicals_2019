@@ -88,7 +88,7 @@ class LinearModule(object):
 
     # update the weight and bias gradients
     self.grads['weight'] = dout.T @ self.x
-    self.grads['bias'] = np.sum(dout, axis=0)
+    self.grads['bias'] = dout
     # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #

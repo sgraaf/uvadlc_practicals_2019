@@ -128,7 +128,7 @@ def train():
     for module in mlp.modules:
       if hasattr(module, 'grads'):  # if it is a linear module
         module.params['weight'] -= learning_rate * module.grads['weight']
-        module.params['bias'] -= learning_rate * module.grads['bias'].mean()
+        module.params['bias'] -= learning_rate * np.mean(module.grads['bias'].T, axis=1, keepdims=True)
 
     # evaluate the MLP
     if (step % eval_freq == 0) or (step == max_steps - 1):
@@ -140,16 +140,17 @@ def train():
       test_predictions = mlp.forward(test_images)
       
       # append the test data metrics
-      test_loss.append(loss_function.forward(test_predictions, test_labels))
       test_acc.append(accuracy(test_predictions, test_labels))
+      test_loss.append(loss_function.forward(test_predictions, test_labels))
+      
 
       print(f'Step {step + 1:0{len(str(max_steps))}} / {max_steps}:')
-      print(f'  Performance on the training data (mini-batch):')
-      print(f'    Accuracy: {train_acc[-1]}')
-      print(f'    Loss: {train_loss[-1]}')
-      print(f'  Performance on the testing data (mini-batch):')
-      print(f'    Accuracy: {test_acc[-1]}')
-      print(f'    Loss: {test_loss[-1]}')
+      print(f' Performance on the training data (mini-batch):')
+      print(f'  Accuracy: {train_acc[-1]}')
+      print(f'  Loss: {train_loss[-1]}')
+      print(f' Performance on the testing data (mini-batch):')
+      print(f'  Accuracy: {test_acc[-1]}')
+      print(f'  Loss: {test_loss[-1]}')
 
       # break if train loss has converged
       threshold = 1e-6
@@ -160,16 +161,16 @@ def train():
           print(f'Loss has converged early in {step + 1} steps')
           break
 
-    # save the relevant metrics to disk
-    print('Saving the metrics to disk...')
-    output_dir = Path.cwd().parent / 'output' / 'mlp_numpy'
-    if not output_dir.exists():
-      output_dir.mkdir(parents=True)
+  # save the relevant metrics to disk
+  print('Saving the metrics to disk...')
+  output_dir = Path.cwd().parent / 'output' / 'mlp_numpy'
+  if not output_dir.exists():
+    output_dir.mkdir(parents=True)
     
-    np.savetxt(output_dir / 'train_acc.csv', train_acc, delimiter=',')
-    np.savetxt(output_dir / 'train_loss.csv', train_loss, delimiter=',')
-    np.savetxt(output_dir / 'test_acc.csv', test_acc, delimiter=',')
-    np.savetxt(output_dir / 'test_loss.csv', test_loss, delimiter=',')
+  np.savetxt(output_dir / 'train_acc.csv', train_acc, delimiter=',')
+  np.savetxt(output_dir / 'train_loss.csv', train_loss, delimiter=',')
+  np.savetxt(output_dir / 'test_acc.csv', test_acc, delimiter=',')
+  np.savetxt(output_dir / 'test_loss.csv', test_loss, delimiter=',')
   # raise NotImplementedError
   ########################
   # END OF YOUR CODE    #
