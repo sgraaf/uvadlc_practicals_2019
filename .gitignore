@@ -2,3 +2,5 @@ __pycache__/
 .vscode/
 cifar-10-batches-py/
 .DS_Store
+output/
+grid_search.py
