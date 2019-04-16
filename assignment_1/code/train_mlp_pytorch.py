@@ -22,6 +22,7 @@ LEARNING_RATE_DEFAULT = 2e-3
 MAX_STEPS_DEFAULT = 1500
 BATCH_SIZE_DEFAULT = 200
 EVAL_FREQ_DEFAULT = 100
+OPTIMIZER_DEFAULT = 'SGD'
 
 # Directory in which cifar data is saved
 DATA_DIR_DEFAULT = './cifar10/cifar-10-batches-py'
@@ -87,6 +88,7 @@ def train():
   batch_size    = FLAGS.batch_size
   eval_freq     = FLAGS.eval_freq
   data_dir      = FLAGS.data_dir
+  optim         = FLAGS.optimizer
 
   # load the cifar10 data
   cifar10 = cifar10_utils.get_cifar10(data_dir)
@@ -105,16 +107,24 @@ def train():
   test_images_torch = torch.tensor(test_images, dtype=torch.float, device=device)
   test_labels_torch = torch.tensor(test_labels, dtype=torch.long, device=device)
 
-  # initialize the MLP, loss function and optimizer
+  # initialize the MLP and loss function
   mlp = MLP(n_inputs, dnn_hidden_units, n_classes).to(device)
   loss_function = torch.nn.CrossEntropyLoss()
-  optimizer = torch.optim.SGD(mlp.parameters(), lr=learning_rate)
+
+  # initialize the optimizer
+  if optim == 'SGD':
+    optimizer = torch.optim.SGD(mlp.parameters(), lr=learning_rate)
+  elif optim == 'Adam':
+    optimizer = torch.optim.Adam(mlp.parameters(), lr=learning_rate)
+  elif optim == 'Adadelta':
+    optimizer = torch.optim.Adadelta(mlp.parameters(), lr=learning_rate)
 
   # initialize relevant metrics
   train_acc = []
   train_loss = []
   test_acc = []
   test_loss = []
+  results = []
 
   # train the MLP
   for step in range(max_steps):
@@ -137,48 +147,54 @@ def train():
 
     # evaluate the MLP
     if (step % eval_freq == 0) or (step == max_steps - 1):
-      # append train data metrics
-      train_acc.append(accuracy(predictions, train_labels_torch))
-      train_loss.append(loss)
+      # compute the train data metrics
+      train_acc = accuracy(predictions, train_labels_torch)
+      train_loss = loss.item()
 
       # evaluate the MLP on the test data
       test_predictions = mlp.forward(test_images_torch)
       
-      # append the test data metrics
-      test_acc.append(accuracy(test_predictions, test_labels_torch))
-      test_loss.append(loss_function.forward(test_predictions, test_labels_torch.argmax(dim=1)))
+      # compute the test data metrics
+      test_acc = accuracy(test_predictions, test_labels_torch)
+      test_loss = loss_function.forward(test_predictions, test_labels_torch.argmax(dim=1)).item()
 
-      print(f'Step {step:0{len(str(max_steps))}} / {max_steps}:')
+      # append the results
+      results.append([step + 1, train_acc, train_loss, test_acc, test_loss])
+
+      print(f'Step {step + 1:0{len(str(max_steps))}} / {max_steps}:')
       print(f' Performance on the training data (mini-batch):')
-      print(f'  Accuracy: {train_acc[-1]}')
-      print(f'  Loss: {train_loss[-1]}')
+      print(f'  Accuracy: {train_acc}')
+      print(f'  Loss: {train_loss}')
       print(f' Performance on the testing data (mini-batch):')
-      print(f'  Accuracy: {test_acc[-1]}')
-      print(f'  Loss: {test_loss[-1]}')
+      print(f'  Accuracy: {test_acc}')
+      print(f'  Loss: {test_loss}')
 
       # break if train loss has converged
       threshold = 1e-6
-      if len(train_loss) > 20:
-        previous_losses = train_loss[-20:-10]
-        current_losses = train_loss[-10:]
+      if len(results) > 20:
+        previous_losses = results[-20:-10][2]
+        current_losses = train_loss[-10:][2]
         if (previous_losses - current_losses) < threshold:
           print(f'Loss has converged early in {step} steps')
           break
 
   # save the relevant metrics to disk
   print('Saving the metrics to disk...')
-  output_dir = Path.cwd().parent / 'output'
-  if not output_dir.exists():
-    output_dir.mkdir(parents=True)
+  output_path = Path.cwd().parent / 'output' / 'mlp_pytorch.csv'
+  output_path.parent.mkdir(parents=True, exist_ok=True)
 
-  combined_metrics = list(zip(train_acc, train_loss, test_acc, test_loss))
-  metric_names = ['train_acc', 'train_loss', 'test_acc', 'test_loss']
-  df = pd.DataFrame(combined_metrics, columns=metric_names)
-  df.to_csv(output_dir / 'mlp_pytorch.csv')
-  # np.savetxt(output_dir / 'train_acc.csv', train_acc, delimiter=',')
-  # np.savetxt(output_dir / 'train_loss.csv', train_loss, delimiter=',')
-  # np.savetxt(output_dir / 'test_acc.csv', test_acc, delimiter=',')
-  # np.savetxt(output_dir / 'test_loss.csv', test_loss, delimiter=',')
+  if output_path.exists():
+    mode = 'a'
+  else:
+    mode = 'w'
+
+  column_names = ['learning_rate', 'max_steps', 'batch_size', 'dnn_hidden_units', 'optimizer', 'step', 'train_acc', 'train_loss', 'test_acc', 'test_loss']
+
+  with open(output_path, mode) as csv_file:
+    if mode == 'w':
+      csv_file.write(','.join(column_names) + '\n')
+    for i in range(len(results)):
+      csv_file.write(f'{learning_rate},{max_steps},{batch_size},{dnn_hidden_units},{optim},{results[i][0]},{results[i][1]},{results[i][2]},{results[i][3]},{results[i][4]}' + '\n')
   # raise NotImplementedError
   ########################
   # END OF YOUR CODE    #
@@ -219,6 +235,8 @@ if __name__ == '__main__':
                         help='Frequency of evaluation on the test set')
   parser.add_argument('--data_dir', type = str, default = DATA_DIR_DEFAULT,
                       help='Directory for storing input data')
+  parser.add_argument('--optimizer', type = str, default = OPTIMIZER_DEFAULT,
+                      help='Optimizer to use')
   FLAGS, unparsed = parser.parse_known_args()
 
   main()
