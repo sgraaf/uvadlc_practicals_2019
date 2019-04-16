@@ -6,6 +6,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import torch
+from torch import nn
+
 class ConvNet(nn.Module):
   """
   This class implements a Convolutional Neural Network in PyTorch.
@@ -22,14 +25,54 @@ class ConvNet(nn.Module):
       n_classes: number of classes of the classification problem
                  
     
-    TODO:
+    TODONE:
     Implement initialization of the network.
     """
 
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    super(ConvNet, self).__init__()
+    self.module_1 = nn.Sequential(
+      nn.Conv2d(n_channels, 64, (3, 3), stride=1, padding=1),
+      nn.BatchNorm2d(64),
+      nn.MaxPool2d((3, 3), stride=2, padding=1)
+    )
+    self.module_2 = nn.Sequential(
+      nn.Conv2d(64, 128, (3, 3), stride=1, padding=1),
+      nn.BatchNorm2d(128),
+      nn.MaxPool2d((3, 3), stride=2, padding=1)
+    )
+    self.module_3 = nn.Sequential(
+      nn.Conv2d(128, 256, (3, 3), stride=1, padding=1),
+      nn.BatchNorm2d(256),
+      nn.Conv2d(256, 256, (3, 3), stride=1, padding=1),
+      nn.BatchNorm2d(256),
+      nn.MaxPool2d((3, 3), stride=2, padding=1)
+    )
+    self.module_4 = nn.Sequential(
+      nn.Conv2d(256, 512, (3, 3), stride=1, padding=1),
+      nn.BatchNorm2d(512),
+      nn.Conv2d(512, 512, (3, 3), stride=1, padding=1),
+      nn.BatchNorm2d(512),
+      nn.MaxPool2d((3, 3), stride=2, padding=1)
+    )
+    self.module_5 = nn.Sequential(
+      nn.Conv2d(512, 512, (3, 3), stride=1, padding=1),
+      nn.BatchNorm2d(512),
+      nn.Conv2d(512, 512, (3, 3), stride=1, padding=1),
+      nn.BatchNorm2d(512),
+      nn.MaxPool2d((3, 3), stride=2, padding=1)
+    )
+    self.module_6 = nn.Sequential(
+      nn.AvgPool2d((1, 1), stride=1, padding=0)
+    )
+    self.module_7 = nn.Sequential(
+      nn.Linear(512, n_classes)
+    )
+
+
+    # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -44,14 +87,21 @@ class ConvNet(nn.Module):
     Returns:
       out: outputs of the network
     
-    TODO:
+    TODONE:
     Implement forward pass of the network.
     """
 
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    out = self.module_1(x)
+    out = self.module_2(out)
+    out = self.module_3(out)
+    out = self.module_4(out)
+    out = self.module_5(out)
+    out = self.module_6(out)
+    out = self.module_7(out.squeeze())
+    # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
