@@ -119,12 +119,12 @@ def train():
   elif optim == 'Adadelta':
     optimizer = torch.optim.Adadelta(mlp.parameters(), lr=learning_rate)
 
-  # initialize relevant metrics
-  train_acc = []
-  train_loss = []
-  test_acc = []
-  test_loss = []
+  # initialize empty results list
   results = []
+  output_dir = Path.cwd().parent / 'output'
+  models_dir = output_dir / 'models' / 'mlp_pytorch'
+  models_dir.mkdir(parents=True, exist_ok=True)
+  best_acc = 0.0
 
   # train the MLP
   for step in range(max_steps):
@@ -156,18 +156,23 @@ def train():
       
       # compute the test data metrics
       test_acc = accuracy(test_predictions, test_labels_torch)
-      test_loss = loss_function.forward(test_predictions, test_labels_torch.argmax(dim=1)).item()
+      test_loss = loss_function.forward(test_predictions, test_labels_torch.argmax(dim=1)).item()        
 
       # append the results
       results.append([step + 1, train_acc, train_loss, test_acc, test_loss])
 
-      print(f'Step {step + 1:0{len(str(max_steps))}} / {max_steps}:')
+      print(f'Step {step + 1:0{len(str(max_steps))}}/{max_steps}:')
       print(f' Performance on the training data (mini-batch):')
-      print(f'  Accuracy: {train_acc}')
-      print(f'  Loss: {train_loss}')
+      print(f'  Accuracy: {train_acc}, Loss: {train_loss}')
       print(f' Performance on the testing data (mini-batch):')
-      print(f'  Accuracy: {test_acc}')
-      print(f'  Loss: {test_loss}')
+      print(f'  Accuracy: {test_acc}, Loss: {test_loss}')
+
+      if test_acc > best_acc:
+        print(f'New best accuracy obtained: {test_acc}')
+        best_acc = test_acc
+        # save the model to disk
+        print('Saving the new best model to disk...')
+        torch.save(mlp, models_dir /  f'{learning_rate},{max_steps},{batch_size},{dnn_hidden_units},{optim}.pt')
 
       # break if train loss has converged
       threshold = 1e-6
@@ -178,8 +183,8 @@ def train():
           print(f'Loss has converged early in {step} steps')
           break
 
-  # save the relevant metrics to disk
-  print('Saving the metrics to disk...')
+  # save the relevant results to disk
+  print('Saving the results to disk...')
   output_path = Path.cwd().parent / 'output' / 'mlp_pytorch.csv'
   output_path.parent.mkdir(parents=True, exist_ok=True)
 
