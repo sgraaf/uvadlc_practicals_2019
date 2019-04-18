@@ -4,3 +4,4 @@ cifar-10-batches-py/
 .DS_Store
 output/best_models/
 grid_search.py
+*.pt
