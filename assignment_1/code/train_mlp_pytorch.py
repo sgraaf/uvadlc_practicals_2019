@@ -175,13 +175,13 @@ def train():
         torch.save(mlp, models_dir /  f'{learning_rate},{max_steps},{batch_size},{dnn_hidden_units},{optim}.pt')
 
       # break if train loss has converged
-      threshold = 1e-6
-      if len(results) > 20:
-        previous_losses = results[-20:-10][2]
-        current_losses = train_loss[-10:][2]
-        if (previous_losses - current_losses) < threshold:
-          print(f'Loss has converged early in {step} steps')
-          break
+      # threshold = 1e-5
+      # if len(results) > 5:
+      #   previous_losses = results[-20:-10][2]
+      #   current_losses = results[-10:][2]
+      #   if (previous_losses - current_losses) < threshold:
+      #     print(f'Loss has converged early in {step} steps')
+      #     break
 
   # save the relevant results to disk
   print('Saving the results to disk...')
@@ -197,9 +197,9 @@ def train():
 
   with open(output_path, mode) as csv_file:
     if mode == 'w':
-      csv_file.write(','.join(column_names) + '\n')
+      csv_file.write(';'.join(column_names) + '\n')
     for i in range(len(results)):
-      csv_file.write(f'{learning_rate},{max_steps},{batch_size},{dnn_hidden_units},{optim},{results[i][0]},{results[i][1]},{results[i][2]},{results[i][3]},{results[i][4]}' + '\n')
+      csv_file.write(f'{learning_rate};{max_steps};{batch_size};{dnn_hidden_units};{optim};{results[i][0]};{results[i][1]};{results[i][2]};{results[i][3]};{results[i][4]}' + '\n')
   # raise NotImplementedError
   ########################
   # END OF YOUR CODE    #
