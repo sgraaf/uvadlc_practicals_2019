@@ -26,6 +26,9 @@ class LinearModule(object):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
+    self.in_features = in_features
+    self.out_features = out_features
+
     self.params = {
       'weight': np.random.normal(0, 0.0001, (out_features, in_features)), 
       'bias': np.zeros((out_features, 1))
@@ -88,7 +91,7 @@ class LinearModule(object):
 
     # update the weight and bias gradients
     self.grads['weight'] = dout.T @ self.x
-    self.grads['bias'] = dout
+    self.grads['bias'] = dout.sum(axis=0).reshape(self.grads['bias'].shape)
     # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
@@ -174,7 +177,7 @@ class SoftMaxModule(object):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    out =  np.exp(x - x.max()) / np.exp(x - x.max()).sum()
+    out =  np.exp(x - x.max(axis=1, keepdims=True)) / np.exp(x - x.max(axis=1, keepdims=True)).sum(axis=1, keepdims=True)
     self.out = out
     # raise NotImplementedError
     ########################

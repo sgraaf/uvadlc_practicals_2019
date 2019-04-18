@@ -12,7 +12,7 @@ import os
 import pandas as pd
 from pathlib import Path
 from mlp_numpy import MLP
-from modules import CrossEntropyModule
+from modules import CrossEntropyModule, LinearModule
 import cifar10_utils
 
 # Default constants
@@ -96,20 +96,18 @@ def train():
   n_inputs = height * width * depth
   n_classes = test_labels.shape[1]
 
+  # reshape the test images
+  test_images = test_images.reshape((n_test_images, n_inputs))
+
   # initialize the MLP
   mlp = MLP(n_inputs, dnn_hidden_units, n_classes)
 
   # initialize the loss function
   loss_function = CrossEntropyModule()
 
-  # initialize relevant metrics
-  train_acc = []
-  train_loss = []
-  test_acc = []
-  test_loss = []
-
-  # reshape the test images
-  test_images = test_images.reshape((n_test_images, n_inputs))
+  # initialize empty results list
+  results = []
+  output_dir = Path.cwd().parent / 'output'
 
   # train the MLP
   for step in range(max_steps):
@@ -127,54 +125,51 @@ def train():
 
     # update the weights and biases of the linear modules of the MLP
     for module in mlp.modules:
-      if hasattr(module, 'grads'):  # if it is a linear module
+      if isinstance(module, LinearModule):  # if it is a linear module
         module.params['weight'] -= learning_rate * module.grads['weight']
-        module.params['bias'] -= learning_rate * np.mean(module.grads['bias'].T, axis=1, keepdims=True)
+        module.params['bias'] -= learning_rate * module.grads['bias']
 
     # evaluate the MLP
     if (step % eval_freq == 0) or (step == max_steps - 1):
-      # append train data metrics
-      train_acc.append(accuracy(predictions, train_labels))
-      train_loss.append(loss)
+      # compute train data metrics
+      train_acc = accuracy(predictions, train_labels)
+      train_loss = loss
 
       # evaluate the MLP on the test data
       test_predictions = mlp.forward(test_images)
       
-      # append the test data metrics
-      test_acc.append(accuracy(test_predictions, test_labels))
-      test_loss.append(loss_function.forward(test_predictions, test_labels))
+      # compute the test data metrics
+      test_acc = accuracy(test_predictions, test_labels)
+      test_loss = loss_function.forward(test_predictions, test_labels)
+
+      # append the results
+      results.append([step + 1, train_acc, train_loss, test_acc, test_loss])
       
-      print(f'Step {step + 1:0{len(str(max_steps))}} / {max_steps}:')
+      print(f'Step {step + 1:0{len(str(max_steps))}}/{max_steps}:')
       print(f' Performance on the training data (mini-batch):')
-      print(f'  Accuracy: {train_acc[-1]}')
-      print(f'  Loss: {train_loss[-1]}')
+      print(f'  Accuracy: {train_acc}, Loss: {train_loss}')
       print(f' Performance on the testing data (mini-batch):')
-      print(f'  Accuracy: {test_acc[-1]}')
-      print(f'  Loss: {test_loss[-1]}')
+      print(f'  Accuracy: {test_acc}, Loss: {test_loss}')
 
       # break if train loss has converged
-      threshold = 1e-6
-      if len(train_loss) > 20:
-        previous_losses = train_loss[-20:-10]
-        current_losses = train_loss[-10:]
-        if (previous_losses - current_losses) < threshold:
-          print(f'Loss has converged early in {step + 1} steps')
-          break
+      # threshold = 1e-6
+      # if len(train_loss) > 20:
+      #   previous_losses = train_loss[-20:-10]
+      #   current_losses = train_loss[-10:]
+      #   if (previous_losses - current_losses) < threshold:
+      #     print(f'Loss has converged early in {step + 1} steps')
+      #     break
 
   # save the relevant metrics to disk
-  print('Saving the metrics to disk...')
-  output_dir = Path.cwd().parent / 'output'
-  if not output_dir.exists():
-    output_dir.mkdir(parents=True)
-  
-  combined_metrics = list(zip(train_acc, train_loss, test_acc, test_loss))
-  metric_names = ['train_acc', 'train_loss', 'test_acc', 'test_loss']
-  df = pd.DataFrame(combined_metrics, columns=metric_names)
-  df.to_csv(output_dir / 'mlp_numpy.csv')  
-  # np.savetxt(output_dir / 'train_acc.csv', train_acc, delimiter=',')
-  # np.savetxt(output_dir / 'train_loss.csv', train_loss, delimiter=',')
-  # np.savetxt(output_dir / 'test_acc.csv', test_acc, delimiter=',')
-  # np.savetxt(output_dir / 'test_loss.csv', test_loss, delimiter=',')
+  print('Saving the results to disk...')
+  output_path = Path.cwd().parent / 'output' / 'mlp_numpy.csv'
+  output_path.parent.mkdir(parents=True, exist_ok=True)
+
+  column_names = ['step', 'train_acc', 'train_loss', 'test_acc', 'test_loss']
+  with open(output_path, 'w') as csv_file:
+    csv_file.write(';'.join(column_names) + '\n')
+    for i in range(len(results)):
+      csv_file.write(f'{results[i][0]};{results[i][1]};{results[i][2]};{results[i][3]};{results[i][4]}' + '\n')
   # raise NotImplementedError
   ########################
   # END OF YOUR CODE    #

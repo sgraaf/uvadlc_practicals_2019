@@ -62,13 +62,13 @@ class MLP(object):
         SoftMaxModule()
       ]
     
-    # for module in self.modules:
-    #   print(module.__class__.__name__)
-    #   if isinstance(module, LinearModule):
-    #     params = module.params
-    #     keys = params.keys()
-    #     for key in keys:
-    #       print(f'  {key}: {params[key].shape}')
+    print('MLP Model:')
+    for i in range(len(self.modules)):
+      module = self.modules[i]
+      if isinstance(module, LinearModule):
+        print(f'({i+1:0{len(str(len(self.modules)))}}) {module.__class__.__name__} - In: {module.in_features}, Out: {module.out_features}')
+      else:
+        print(f'({i+1:0{len(str(len(self.modules)))}}) {module.__class__.__name__}')
     # raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
@@ -84,7 +84,7 @@ class MLP(object):
     Returns:
       out: outputs of the network
     
-    TODO:
+    TODONE:
     Implement forward pass of the network.
     """
 
