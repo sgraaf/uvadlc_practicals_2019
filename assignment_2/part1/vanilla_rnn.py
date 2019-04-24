@@ -54,7 +54,7 @@ class VanillaRNN(nn.Module):
     def forward(self, x):
         # Implementation here ...
         # initialize the hidden state
-        h = torch.zeros((self.num_hidden, 1), requires_grad=False)
+        h = torch.zeros(self.num_hidden).to(self.device)
         
         # compute the hidden state
         for i in range(self.seq_length):
