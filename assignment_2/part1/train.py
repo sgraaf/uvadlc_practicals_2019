@@ -66,6 +66,7 @@ def train(config):
     # make the results directory (if it doesn't exist)
     RESULTS_DIR = Path.cwd() / 'results'
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    results_filepath = RESULTS_DIR / (model.__class__.__name__ + '.csv')
 
     # Initialize the dataset and data loader (note the +1)
     dataset = PalindromeDataset(config.input_length+1)
@@ -74,9 +75,6 @@ def train(config):
     # Setup the loss and optimizer
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.RMSprop(model.parameters(), lr=config.learning_rate)
-
-    accuracies = []
-    losses = []
 
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
 
@@ -114,7 +112,7 @@ def train(config):
         t2 = time.time()
         examples_per_second = config.batch_size/float(t2-t1)
 
-        if step % 10 == 0:
+        if step % 1000 == 0:
 
             print("[{}] Train Step {:04d}/{:04d}, Batch Size = {}, Examples/Sec = {:.2f}, "
                   "Accuracy = {:.2f}, Loss = {:.3f}".format(
@@ -123,18 +121,17 @@ def train(config):
                     accuracy, loss
             ))
 
-            accuracies.append(accuracy)
-            losses.append(loss)
-
         if step == config.train_steps:
+            if not results_filepath.exists():
+                with open(results_filepath, 'w') as f:
+                    f.write('T;Step;Accuracy;Loss\n')
+                    f.write(f'{config.input_length};{accuracy};{loss}\n')
+            else:
+                 with open(results_filepath, 'a') as f:
+                    f.write(f'{config.input_length};{accuracy};{loss}\n')
             # If you receive a PyTorch data-loader error, check this bug report:
             # https://github.com/pytorch/pytorch/pull/9655
             break
-
-    with open(RESULTS_DIR / (model.__class__.__name__ + '.csv'), 'w') as f:
-        f.write('Step;Accuracy;Loss\n')
-        for i in range(len(accuracies)):
-            f.write(f'{i*10 + 1};{accuracies[i]};{losses[i]}\n')
 
     print('Done training.')
 
@@ -156,7 +153,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=128, help='Number of examples to process in a batch')
     parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate')
     parser.add_argument('--train_steps', type=int, default=10000, help='Number of training steps')
-    parser.add_argument('--max_norm', type=float, default=1.0)
+    parser.add_argument('--max_norm', type=float, default=10.0)
     parser.add_argument('--device', type=str, default="cuda:0", help="Training device 'cpu' or 'cuda:0'")
 
     config = parser.parse_args()
