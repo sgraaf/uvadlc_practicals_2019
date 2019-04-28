@@ -36,62 +36,63 @@ class LSTM(nn.Module):
         self.device = device
         
         mu = 0
-        sigma = 1e-4
+        sigma = 1e-2
 
         # initialize the weights and biases for the input modulation gate
-        self.Wgx = nn.Parameter(torch.Tensor(self.input_dim, self.num_hidden).normal_(mean=mu, std=sigma).to(self.device))
-        self.Wgh = nn.Parameter(torch.Tensor(self.num_hidden, self.num_hidden).normal_(mean=mu, std=sigma).to(self.device))
+        self.Wgx = nn.Parameter(mu + sigma * torch.randn(self.input_dim, self.num_hidden))
+        self.Wgh = nn.Parameter(mu + sigma * torch.randn(self.num_hidden, self.num_hidden))
         self.bg = nn.Parameter(torch.zeros(self.num_hidden).to(self.device))
 
         # initialize the weights and biases for the input gate
-        self.Wix = nn.Parameter(torch.Tensor(self.input_dim, self.num_hidden).normal_(mean=mu, std=sigma).to(self.device))
-        self.Wih = nn.Parameter(torch.Tensor(self.num_hidden, self.num_hidden).normal_(mean=mu, std=sigma).to(self.device))
+        self.Wix = nn.Parameter(mu + sigma * torch.randn(self.input_dim, self.num_hidden))
+        self.Wih = nn.Parameter(mu + sigma * torch.randn(self.num_hidden, self.num_hidden))
         self.bi = nn.Parameter(torch.zeros(self.num_hidden).to(self.device))
 
         # initialize the weights and biases for the forget gate
-        self.Wfx = nn.Parameter(torch.Tensor(self.input_dim, self.num_hidden).normal_(mean=mu, std=sigma).to(self.device))
-        self.Wfh = nn.Parameter(torch.Tensor(self.num_hidden, self.num_hidden).normal_(mean=mu, std=sigma).to(self.device))
+        self.Wfx = nn.Parameter(mu + sigma * torch.randn(self.input_dim, self.num_hidden))
+        self.Wfh = nn.Parameter(mu + sigma * torch.randn(self.num_hidden, self.num_hidden))
         self.bf = nn.Parameter(torch.zeros(self.num_hidden).to(self.device))
 
         # initialize the weights and biases for the output gate
-        self.Wox = nn.Parameter(torch.Tensor(self.input_dim, self.num_hidden).normal_(mean=mu, std=sigma).to(self.device))
-        self.Woh = nn.Parameter(torch.Tensor(self.num_hidden, self.num_hidden).normal_(mean=mu, std=sigma).to(self.device))
+        self.Wox = nn.Parameter(mu + sigma * torch.randn(self.input_dim, self.num_hidden))
+        self.Woh = nn.Parameter(mu + sigma * torch.randn(self.num_hidden, self.num_hidden))
         self.bo = nn.Parameter(torch.zeros(self.num_hidden).to(self.device))
 
         # intialize the weights and biases for the output
-        self.Wph = nn.Parameter(torch.Tensor(self.num_hidden, self.num_classes).normal_(mean=mu, std=sigma).to(self.device))
-        self.bp = nn.Parameter(torch.zeros(self.num_classes).to(self.device))
+        self.Wph = nn.Parameter(mu + sigma * torch.randn(self.num_hidden, self.num_classes))
+        self.bp = nn.Parameter(torch.zeros(self.num_classes))
 
         # initialize the activation functions
         self.tanh = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
-        self.softmax = nn.Softmax()
 
     def forward(self, x):
         # Implementation here ...
         # initialize the hidden state(s)
-        h = torch.zeros(self.num_hidden).to(self.device)
-        c = torch.zeros(self.num_hidden).to(self.device)
+        h = torch.zeros(self.batch_size, self.num_hidden, device=self.device)
+        c = torch.zeros(self.batch_size, self.num_hidden, device=self.device)
         
         # compute the hidden state
         for i in range(self.seq_length):
+            xi = x[:, i].view(self.batch_size, self.input_dim)
+            
             g = self.tanh(
-                x[:, i] @ self.Wgx +
+                xi @ self.Wgx +
                 h @ self.Wgh +
                 self.bg
             )
             i = self.sigmoid(
-                x[:, i] @ self.Wix +
+                xi @ self.Wix +
                 h @ self.Wih +
                 self.bi
             )
             f = self.sigmoid(
-                x[:, i] @ self.Wfx +
+                xi @ self.Wfx +
                 h @ self.Wfh +
                 self.bf
             )
             o = self.sigmoid(
-                x[:, i] @ self.Wox +
+                xi @ self.Wox +
                 h @ self.Woh +
                 self.bo
             )
@@ -100,6 +101,6 @@ class LSTM(nn.Module):
             h = self.tanh(c) * o
 
         # compute the output
-        p = self.softmax(h @ self.Wph + self.bp)
+        p = h @ self.Wph + self.bp
 
         return p
