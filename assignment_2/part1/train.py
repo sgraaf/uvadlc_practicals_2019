@@ -22,6 +22,7 @@ import argparse
 import time
 from datetime import datetime
 import numpy as np
+from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader
@@ -62,6 +63,10 @@ def train(config):
             device=device
         )
 
+    # make the results directory (if it doesn't exist)
+    RESULTS_DIR = Path.cwd() / 'results'
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
     # Initialize the dataset and data loader (note the +1)
     dataset = PalindromeDataset(config.input_length+1)
     data_loader = DataLoader(dataset, config.batch_size, num_workers=1)
@@ -76,17 +81,31 @@ def train(config):
         t1 = time.time()
 
         # Add more code here ...
+        # send the data to device
+        batch_inputs = batch_inputs.to(device)
+        batch_targets = batch_targets.to(device)
+
+        # (re)set the optimizer gradient to 0
+        optimizer.zero_grad()
+
+        # forward pass the mini-batch
+        pred_targets = model.forward(batch_inputs)
+        loss = criterion.forward(pred_targets, batch_targets)
+        
+        # backwards propogate the loss
+        loss.backward()
 
         ############################################################################
         # QUESTION: what happens here and why?
+        # clip_grad_norm is deprecated, use clip_grad_norm_ instead
         ############################################################################
-        torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_norm)
         ############################################################################
 
         # Add more code here ...
+        optimizer.step()
 
-        loss = np.inf   # fixme
-        accuracy = 0.0  # fixme
+        accuracy = (pred_targets.argmax(dim=1) ==  batch_targets).sum().float() / (config.batch_size)
 
         # Just for time measurement
         t2 = time.time()
