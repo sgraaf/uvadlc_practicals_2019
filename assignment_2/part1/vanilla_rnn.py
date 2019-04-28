@@ -39,13 +39,13 @@ class VanillaRNN(nn.Module):
         sigma = 1e-2
 
         # initialize the weights
-        self.Whx = nn.Parameter(mu + sigma * torch.randn(self.input_dim, self.num_hidden))
-        self.Whh = nn.Parameter(mu + sigma * torch.randn(self.num_hidden, self.num_hidden))
-        self.Wph = nn.Parameter(mu + sigma * torch.randn(self.num_hidden, self.num_classes))
+        self.Whx = nn.Parameter(mu + sigma * torch.randn((self.input_dim, self.num_hidden), device=self.device))
+        self.Whh = nn.Parameter(mu + sigma * torch.randn((self.num_hidden, self.num_hidden), device=self.device))
+        self.Wph = nn.Parameter(mu + sigma * torch.randn((self.num_hidden, self.num_classes), device=self.device))
 
         # initialize the biases
-        self.bh = nn.Parameter(torch.zeros((self.num_hidden, 1)))
-        self.bp = nn.Parameter(torch.zeros((self.num_classes, 1)))
+        self.bh = nn.Parameter(torch.zeros(self.num_hidden, device=self.device))
+        self.bp = nn.Parameter(torch.zeros(self.num_classes, device=self.device))
 
         # initialize the tanh activation function
         self.tanh = nn.Tanh()
@@ -54,7 +54,7 @@ class VanillaRNN(nn.Module):
     def forward(self, x):
         # Implementation here ...
         # initialize the hidden state
-        h = torch.zeros(self.batch_size, self.num_hidden, device=self.device)
+        h = torch.zeros((self.batch_size, self.num_hidden), device=self.device)
         
         # compute the hidden state
         for i in range(self.seq_length):
