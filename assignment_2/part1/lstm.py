@@ -39,28 +39,28 @@ class LSTM(nn.Module):
         sigma = 1e-2
 
         # initialize the weights and biases for the input modulation gate
-        self.Wgx = nn.Parameter(mu + sigma * torch.randn(self.input_dim, self.num_hidden))
-        self.Wgh = nn.Parameter(mu + sigma * torch.randn(self.num_hidden, self.num_hidden))
-        self.bg = nn.Parameter(torch.zeros(self.num_hidden).to(self.device))
+        self.Wgx = nn.Parameter(mu + sigma * torch.randn((self.input_dim, self.num_hidden), device=self.device))
+        self.Wgh = nn.Parameter(mu + sigma * torch.randn((self.num_hidden, self.num_hidden), device=self.device))
+        self.bg = nn.Parameter(torch.zeros(self.num_hidden, device=self.device))
 
         # initialize the weights and biases for the input gate
-        self.Wix = nn.Parameter(mu + sigma * torch.randn(self.input_dim, self.num_hidden))
-        self.Wih = nn.Parameter(mu + sigma * torch.randn(self.num_hidden, self.num_hidden))
-        self.bi = nn.Parameter(torch.zeros(self.num_hidden).to(self.device))
+        self.Wix = nn.Parameter(mu + sigma * torch.randn((self.input_dim, self.num_hidden), device=self.device))
+        self.Wih = nn.Parameter(mu + sigma * torch.randn((self.num_hidden, self.num_hidden), device=self.device))
+        self.bi = nn.Parameter(torch.zeros(self.num_hidden, device=self.device))
 
         # initialize the weights and biases for the forget gate
-        self.Wfx = nn.Parameter(mu + sigma * torch.randn(self.input_dim, self.num_hidden))
-        self.Wfh = nn.Parameter(mu + sigma * torch.randn(self.num_hidden, self.num_hidden))
-        self.bf = nn.Parameter(torch.zeros(self.num_hidden).to(self.device))
+        self.Wfx = nn.Parameter(mu + sigma * torch.randn((self.input_dim, self.num_hidden), device=self.device))
+        self.Wfh = nn.Parameter(mu + sigma * torch.randn((self.num_hidden, self.num_hidden), device=self.device))
+        self.bf = nn.Parameter(torch.zeros(self.num_hidden, device=self.device))
 
         # initialize the weights and biases for the output gate
-        self.Wox = nn.Parameter(mu + sigma * torch.randn(self.input_dim, self.num_hidden))
-        self.Woh = nn.Parameter(mu + sigma * torch.randn(self.num_hidden, self.num_hidden))
-        self.bo = nn.Parameter(torch.zeros(self.num_hidden).to(self.device))
+        self.Wox = nn.Parameter(mu + sigma * torch.randn((self.input_dim, self.num_hidden), device=self.device))
+        self.Woh = nn.Parameter(mu + sigma * torch.randn((self.num_hidden, self.num_hidden), device=self.device))
+        self.bo = nn.Parameter(torch.zeros(self.num_hidden, device=self.device))
 
         # intialize the weights and biases for the output
-        self.Wph = nn.Parameter(mu + sigma * torch.randn(self.num_hidden, self.num_classes))
-        self.bp = nn.Parameter(torch.zeros(self.num_classes))
+        self.Wph = nn.Parameter(mu + sigma * torch.randn((self.num_hidden, self.num_classes), device=self.device))
+        self.bp = nn.Parameter(torch.zeros(self.num_classes, device=self.device))
 
         # initialize the activation functions
         self.tanh = nn.Tanh()
@@ -69,8 +69,8 @@ class LSTM(nn.Module):
     def forward(self, x):
         # Implementation here ...
         # initialize the hidden state(s)
-        h = torch.zeros(self.batch_size, self.num_hidden, device=self.device)
-        c = torch.zeros(self.batch_size, self.num_hidden, device=self.device)
+        h = torch.zeros((self.batch_size, self.num_hidden), device=self.device)
+        c = torch.zeros((self.batch_size, self.num_hidden), device=self.device)
         
         # compute the hidden state
         for i in range(self.seq_length):
