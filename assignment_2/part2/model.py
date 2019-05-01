@@ -17,13 +17,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import torch
 import torch.nn as nn
 
 
 class TextGenerationModel(nn.Module):
 
     def __init__(self, batch_size, seq_length, vocabulary_size,
-                 lstm_num_hidden=256, lstm_num_layers=2, device='cuda:0'):
+                 lstm_num_hidden=256, lstm_num_layers=2, device='cuda:0', batch_first=True, dropout=0):
 
         super(TextGenerationModel, self).__init__()
         # Initialization here...
@@ -33,28 +34,45 @@ class TextGenerationModel(nn.Module):
         self.lstm_num_hidden = lstm_num_hidden
         self.lstm_num_layers = lstm_num_layers
         self.device = device
+        self.batch_first=batch_first
+        self.dropout = dropout
+
+        # initialize the embedding
+        self.embed = nn.Embedding(
+            num_embeddings=self.vocabulary_size,
+            embedding_dim=self.vocabulary_size,
+            _weight=torch.eye(self.vocabulary_size)
+        )
+        self.embed.requires_grad = False
 
         # initialize the multi-layer LSTM module
         self.LSTM = nn.LSTM(
             input_size=self.vocabulary_size,
             hidden_size=self.lstm_num_hidden,
-            num_layers=self.lstm_num_layers
+            num_layers=self.lstm_num_layers,
+            batch_first=self.batch_first,
+            dropout=self.dropout
         )
-        
+
         # initialize the Linear module
         self.Linear = nn.Linear(
             in_features=self.lstm_num_hidden,
             out_features=self.vocabulary_size
         )
-        
 
-    def forward(self, x, hidden_states=None):
+        # send to device
+        self.to(device)
+
+    def forward(self, x, h_c=None):
         # Implementation here...
-        
+
+        # embed the input
+        embedding = self.embed(x)
+
         # LSTM module forward pass
-        out, (h, c) = self.lstm(x, hidden_states)
-        
+        out, h_c = self.LSTM(embedding, h_c)
+
         # Linear module forward pass
-        out = self.linear(out)
-        
-        return out, (h, c)
+        out = self.Linear(out)
+
+        return out, h_c
