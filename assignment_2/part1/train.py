@@ -22,6 +22,7 @@ import argparse
 import time
 from datetime import datetime
 import numpy as np
+from pandas import DataFrame as df
 from pathlib import Path
 
 import torch
@@ -41,7 +42,13 @@ def train(config):
     assert config.model_type in ('RNN', 'LSTM')
 
     # Initialize the device which to run the model on
-    device = torch.device(config.device)
+    if config.device == 'cuda':
+        if torch.cuda.is_available():
+            device = torch.device(config.device)
+        else:
+            device = torch.device('cpu')
+    else:
+        device = torch.device(config.device)
 
     # Initialize the model that we are going to use
     if config.model_type == 'RNN':
@@ -76,6 +83,13 @@ def train(config):
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.RMSprop(model.parameters(), lr=config.learning_rate)
 
+    results = {
+            'T': [],
+            'step': [],
+            'accuracy': [],
+            'loss': [],
+        }
+    
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
 
         # Only for time measurement of step through network
@@ -106,29 +120,28 @@ def train(config):
         # Add more code here ...
         optimizer.step()
 
-        accuracy = (pred_targets.argmax(dim=1) ==  batch_targets).sum().float() / (config.batch_size)
+        accuracy = (pred_targets.argmax(dim=1) ==  batch_targets).float().mean()
+
+        # append the results
+        results['T'].append(config.input_length)
+        results['step'].append(step)
+        results['accuracy'].append(accuracy.item())
+        results['loss'].append(loss.item())
 
         # Just for time measurement
         t2 = time.time()
         examples_per_second = config.batch_size/float(t2-t1)
 
         if step % 1000 == 0:
-
-            print("[{}] Train Step {:04d}/{:04d}, Batch Size = {}, Examples/Sec = {:.2f}, "
-                  "Accuracy = {:.2f}, Loss = {:.3f}".format(
-                    datetime.now().strftime("%Y-%m-%d %H:%M"), step,
-                    config.train_steps, config.batch_size, examples_per_second,
-                    accuracy, loss
-            ))
+            print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] Train Step {step:04d}/{config.train_steps:04d}, Batch Size = {config.batch_size}, Examples/Sec = {examples_per_second:.2f}, Accuracy = {accuracy:.2f}, Loss = {loss:.3f}')
 
         if step == config.train_steps:
+            results_df = df.from_dict(results)
+            
             if not results_filepath.exists():
-                with open(results_filepath, 'w') as f:
-                    f.write('T;Step;Accuracy;Loss\n')
-                    f.write(f'{config.input_length};{accuracy};{loss}\n')
+                results_df.to_csv(results_filepath, sep=';', mode='w', encoding='utf-8', index=False)
             else:
-                 with open(results_filepath, 'a') as f:
-                    f.write(f'{config.input_length};{accuracy};{loss}\n')
+                results_df.to_csv(results_filepath, sep=';', mode='a', header=False, encoding='utf-8', index=False)
             # If you receive a PyTorch data-loader error, check this bug report:
             # https://github.com/pytorch/pytorch/pull/9655
             break
