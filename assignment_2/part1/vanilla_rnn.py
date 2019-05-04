@@ -35,20 +35,24 @@ class VanillaRNN(nn.Module):
         self.batch_size = batch_size
         self.device = device
 
-        mu = 0
-        sigma = 1e-2
+        # create the weights
+        self.Whx = nn.Parameter(torch.Tensor(self.input_dim, self.num_hidden))
+        self.Whh = nn.Parameter(torch.Tensor(self.num_hidden, self.num_hidden))
+        self.Wph = nn.Parameter(torch.Tensor(self.num_hidden, self.num_classes))
 
         # initialize the weights
-        self.Whx = nn.Parameter(mu + sigma * torch.randn((self.input_dim, self.num_hidden), device=self.device))
-        self.Whh = nn.Parameter(mu + sigma * torch.randn((self.num_hidden, self.num_hidden), device=self.device))
-        self.Wph = nn.Parameter(mu + sigma * torch.randn((self.num_hidden, self.num_classes), device=self.device))
+        for parameter in [self.Whx, self.Whh, self.Wph]:
+            torch.nn.init.xavier_normal_(parameter)
 
         # initialize the biases
-        self.bh = nn.Parameter(torch.zeros(self.num_hidden, device=self.device))
-        self.bp = nn.Parameter(torch.zeros(self.num_classes, device=self.device))
+        self.bh = nn.Parameter(torch.zeros(self.num_hidden))
+        self.bp = nn.Parameter(torch.zeros(self.num_classes))
 
         # initialize the tanh activation function
         self.tanh = nn.Tanh()
+
+        # send to device
+        self.to(self.device)
 
 
     def forward(self, x):
