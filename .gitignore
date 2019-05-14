@@ -1,10 +1,17 @@
-__pycache__/
-.vscode/
-cifar-10-batches-py/
+# macOS
 .DS_Store
+
+# Python
+__pycache__/
+
+# VS Code
+.vscode/
+
+cifar-10-batches-py/
 output/best_models/
 grid_search.py
 *.pt
 assignment_1/personal_environment.yml
 *.job
 *.zip
+*.amat
