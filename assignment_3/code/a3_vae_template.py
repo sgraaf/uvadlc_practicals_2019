@@ -1,11 +1,14 @@
 import argparse
+from pathlib import Path
 
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
-import matplotlib.pyplot as plt
-from torchvision.utils import make_grid
+from pandas import DataFrame as df
 
 from datasets.bmnist import bmnist
+from torchvision.utils import make_grid
 
 if torch.cuda.is_available():
     device = torch.device('cuda:0')
@@ -14,6 +17,9 @@ else:
     device = torch.device('cpu')
     torch.set_default_tensor_type('torch.FloatTensor')
 
+RESULTS_DIR = Path(__file__).resolve().parents[1] / 'results'
+SAMPLES_DIR = RESULTS_DIR / 'samples'
+SAMPLES_DIR.mkdir(parents=True, exist_ok=True)
 
 class Encoder(nn.Module):
 
@@ -88,7 +94,7 @@ class VAE(nn.Module):
         # raise NotImplementedError()
         mean, std = self.encoder(input)
 
-        noise = torch.randn_like(mean)
+        noise = torch.randn_like(std)
         z = mean + std * noise
 
         output = self.decoder(z)
@@ -99,7 +105,8 @@ class VAE(nn.Module):
 
         return average_negative_elbo
 
-    def sample(self, n_samples):
+
+    def sample(self, n_samples, sampled_zs=None):
         """
         Sample n_samples from the model. Return both the sampled images
         (from bernoulli) and the means for these bernoullis (as these are
@@ -107,11 +114,25 @@ class VAE(nn.Module):
         """
         # sampled_ims, im_means = None, None
         # raise NotImplementedError()
-        sampled_zs = torch.randn((n_samples, self.z_dim))
-        sampled_ims = self.decoder(sampled_zs)
-        im_means = sampled_ims.mean(dim=0)
+        if not sampled_zs:
+            sampled_zs = torch.randn((n_samples, self.z_dim))
+        im_means = self.decoder(sampled_zs)
+        im_means = im_means.reshape(-1, 1, 28, 28)
+        sampled_ims = torch.bernoulli(im_means)
 
-        return sampled_ims.view(-1, 1, 28, 28), im_means.view(1, 1, 28, 28)
+        return sampled_ims, im_means
+
+
+    def sample_manifold(self, n=10):
+        x = y = np.linspace(-2, 2, n + 2)
+        xx, yy = torch.meshgrid(x, y)
+
+        zs = torch.stack([xx, yy], dim=0)
+        zs = zs.view(-1, 2)
+
+        sampled_ims, im_means = self.sample(1, zs)
+
+        return sampled_ims, im_means
 
 
 def reconstruction_loss(input, decoded):
@@ -125,7 +146,7 @@ def regularization_loss(mean, std, eps):
     """
     Compute the regularization loss (KL-divergence) between the predicted mean and standard deviation and the standard gaussian.
     """
-    return 0.5 * (mean.pow(2) + std.pow(2) - 1 - (std + eps).log()).sum(dim=-1)
+    return 0.5 * (mean.pow(2) + std.pow(2) - 1 - (std.pow(2) + eps).log()).sum(dim=1)
 
 
 def epoch_iter(model, data, optimizer):
@@ -187,6 +208,28 @@ def save_elbo_plot(train_curve, val_curve, filename):
     plt.savefig(filename)
 
 
+def save_samples_plot(sampled_ims, im_means, model, epoch, z_dim):
+    with torch.no_grad():
+        n_rows = int(np.sqrt(sampled_ims.size()[0]))
+        
+        sampled_ims_path = SAMPLES_DIR / f'{model.__class__.__name__}_epoch_{epoch:03d}_z_dim_{z_dim:02d}_binary.png'
+        sampled_ims = make_grid(sampled_ims, nrow=n_rows)
+        sampled_ims = sampled_ims.cpu().numpy().transpose(1, 2, 0)
+        plt.imshow(sampled_ims, interpolation='nearest')
+        plt.tight_layout()
+        plt.axis('off')
+        plt.savefig(sampled_ims_path)
+        plt.close()
+
+        im_means_path = SAMPLES_DIR / f'{model.__class__.__name__}_epoch_{epoch:03d}_z_dim_{z_dim:02d}_mean.png'
+        im_means = make_grid(im_means, nrow =n_rows)
+        im_means = im_means.cpu().numpy().transpose(1, 2, 0)
+        plt.imshow(im_means, interpolation='nearest')
+        plt.tight_layout()
+        plt.axis('off')
+        plt.savefig(im_means_path)
+        plt.close()
+
 def main():
     data = bmnist()[:2]  # ignore test split
     model = VAE(z_dim=ARGS.zdim)
@@ -204,14 +247,35 @@ def main():
         #  Add functionality to plot samples from model during training.
         #  You can use the make_grid functioanlity that is already imported.
         # --------------------------------------------------------------------
+        # plot the samples
+        sampled_ims, im_means = model.sample(16)
+        save_samples_plot(sampled_ims, im_means, model, epoch, ARGS.zdim)
+
+        # save the results
+        results = {
+            'train elbo': train_curve,
+            'val elbo': val_curve
+        }
+        results_df = df.from_dict(results)
+        results_path = RESULTS_DIR / f'{model.__class__.__name__}_results.csv'
+        results_df.to_csv(results_path, sep=';', encoding='utf-8', index=False)
+
+        # save the model
+        model_path = RESULTS_DIR / f'{model.__class__.__name__}_model.pt'
+        torch.save(model.state_dict(), model_path)
+
 
     # --------------------------------------------------------------------
     #  Add functionality to plot plot the learned data manifold after
     #  if required (i.e., if zdim == 2). You can use the make_grid
     #  functionality that is already imported.
     # --------------------------------------------------------------------
+    if ARGS.zdim == 2:
+        sampled_ims, im_means = model.sample_manifold(10)
+        save_samples_plot(sampled_ims, im_means, model, epoch, ARGS.zdim)
 
-    save_elbo_plot(train_curve, val_curve, 'elbo.pdf')
+    plot_path = RESULTS_DIR / f'{model.__class__.__name__}_elbo.png'
+    save_elbo_plot(train_curve, val_curve, plot_path)
 
 
 if __name__ == "__main__":
