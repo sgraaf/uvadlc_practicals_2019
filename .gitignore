@@ -15,3 +15,5 @@ assignment_1/personal_environment.yml
 *.job
 *.zip
 *.amat
+assignment_3/results/VAE_samples/
+assignment_3/results/GAN_samples/
