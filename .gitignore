@@ -17,3 +17,4 @@ assignment_1/personal_environment.yml
 *.amat
 assignment_3/results/VAE_samples/
 assignment_3/results/GAN_samples/
+*-ubyte
