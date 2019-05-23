@@ -42,15 +42,22 @@ class Generator(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(self.latent_dim, 128),
             nn.LeakyReLU(0.2),
+            nn.Dropout(0.3),
+            
             nn.Linear(128, 256),
             nn.BatchNorm1d(256),
             nn.LeakyReLU(0.2),
+            nn.Dropout(0.3),
+            
             nn.Linear(256, 512),
             nn.BatchNorm1d(512),
             nn.LeakyReLU(0.2),
+            nn.Dropout(0.3),
+            
             nn.Linear(512, 1024),
             nn.BatchNorm1d(1024),
             nn.LeakyReLU(0.2),
+            
             nn.Linear(1024, 28**2),
             nn.Tanh()
         )
@@ -77,8 +84,12 @@ class Discriminator(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(28**2, 512),
             nn.LeakyReLU(0.2),
+            nn.Dropout(0.3),
+            
             nn.Linear(512, 256),
             nn.LeakyReLU(0.2),
+            nn.Dropout(0.3),
+            
             nn.Linear(256, 1),
             nn.Sigmoid()
         )
@@ -107,30 +118,26 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D):
             'D_loss': []
         }
 
-        # send everything to DEVICE
+        # send the discriminator and generator to device
         discriminator.to(DEVICE)
         generator.to(DEVICE)
 
         for i, (imgs, _) in enumerate(dataloader):
-            if torch.cuda.is_available():
-                torch.set_default_tensor_type('torch.cuda.FloatTensor')
-
             # keep track of time for batch
             batch_start = time.time()
 
             # flatten images and send them to DEVICE
-            real_imgs = imgs.view(-1, 28**2).to(DEVICE)
+            real_imgs = imgs.view(imgs.shape[0], -1).to(DEVICE)
 
             # Train Generator
             # ---------------
-            # put the generator in train mode (and the discriminator in eval mode) and (re)set the gradients to 0
-            generator.train(), discriminator.eval()
-            optimizer_G.zero_grad()
             # sample latent z
             z = torch.randn((real_imgs.shape[0], args.latent_dim), device=DEVICE)
-            # forward pass: run the sampled z through the generator and discriminator and compute the loss
+            # forward pass: run the sampled z through the generator and discriminator
             G_z = generator(z)
             D_G_z = discriminator(G_z)
+            # (re)set the gradients to 0 and compute the loss
+            optimizer_G.zero_grad()
             G_loss = - D_G_z.log().mean(dim=0)
             # backward pass: backpropogate the loss and update gradients
             G_loss.backward()
@@ -138,16 +145,15 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D):
 
             # Train Discriminator
             # -------------------
-            # put the discriminator in train mode (and the generator in eval mode) and (re)set the gradients to 0
-            discriminator.train(), generator.eval()
-            optimizer_D.zero_grad()
             # sample latent z and generate fake imgs 
             z = torch.randn((real_imgs.shape[0], args.latent_dim), device=DEVICE)
             G_z = generator(z)
-            # forward pass: run the real imgs and fake imgs through the discriminator and compute the loss
+            # forward pass: run the real imgs and fake imgs through the discriminator
             D_real_imgs = discriminator(real_imgs)
             D_G_z = discriminator(G_z)
-            D_loss = - (D_real_imgs.log() + (1 - D_G_z).log()).mean(dim=0)
+            # (re)set the gradients to 0 and compute the loss
+            optimizer_D.zero_grad()
+            D_loss = - torch.log(D_real_imgs).mean(dim=0) - torch.log(1 - D_G_z).mean(dim=0)
             # backward pass: backpropogate the loss and update gradients
             D_loss.backward()
             optimizer_D.step()
@@ -171,12 +177,11 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D):
                 # print stuff
                 examples_per_second = args.batch_size / float(time.time() - batch_start)
                 print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] Epoch: {epoch:03d} Step: {i:04d}, G_loss: {G_loss.item():06f}, D_loss: {D_loss.item():06f}, Examples/Sec = {examples_per_second:.2f}')
+                
                 # sample latent z and generate fake imgs 
                 z = torch.randn((real_imgs.shape[0], args.latent_dim), device=DEVICE)
                 G_z = generator(z).view(-1, 1, 28, 28)
                 save_image(G_z[:25], IMAGES_DIR / f'epoch_{epoch:03d}_step_{i:04d}.png', nrow=5, normalize=True)
-
-            torch.set_default_tensor_type('torch.FloatTensor')
 
         # Record Epoch Results
         # --------------------
@@ -193,14 +198,15 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D):
 
         # Save the Generator and Discriminator
         # ------------------------------------
-        torch.save(generator.state_dict(), f'epoch_{epoch:03d}_mnist_generator.pt')
-        torch.save(discriminator.state_dict(), f'epoch_{epoch:03d}_mnist_discriminator.pt')
+        if epoch % 20 == 0:
+            torch.save(generator.state_dict(), RESULTS_DIR / f'epoch_{epoch:03d}_mnist_generator.pt')
+            torch.save(discriminator.state_dict(), RESULTS_DIR / f'epoch_{epoch:03d}_mnist_discriminator.pt')
 
-    # Save Results
-    # ------------
-    results_df = df.from_dict(results)
-    results_filepath = RESULTS_DIR / 'GAN_results.csv'
-    results_df.to_csv(results_filepath, sep=';', mode='w', encoding='utf-8', index=False)
+        # Save Results
+        # ------------
+        results_df = df.from_dict(results)
+        results_filepath = RESULTS_DIR / 'GAN_results.csv'
+        results_df.to_csv(results_filepath, sep=';', mode='w', encoding='utf-8', index=False)
 
 
 def main():
@@ -217,8 +223,8 @@ def main():
         batch_size=args.batch_size, shuffle=True)
 
     # Initialize models and optimizers
-    generator = Generator(args.latent_dim).to(DEVICE)
-    discriminator = Discriminator().to(DEVICE)
+    generator = Generator(args.latent_dim)
+    discriminator = Discriminator()
     optimizer_G = torch.optim.Adam(generator.parameters(), lr=args.lr)
     optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=args.lr)
 

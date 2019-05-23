@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -6,9 +7,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 from pandas import DataFrame as df
+from torchvision.utils import make_grid
 
 from datasets.bmnist import bmnist
-from torchvision.utils import make_grid
 
 if torch.cuda.is_available():
     device = torch.device('cuda:0')
@@ -18,7 +19,7 @@ else:
     torch.set_default_tensor_type('torch.FloatTensor')
 
 RESULTS_DIR = Path(__file__).resolve().parents[1] / 'results'
-SAMPLES_DIR = RESULTS_DIR / 'samples'
+SAMPLES_DIR = RESULTS_DIR / 'VAE_samples'
 SAMPLES_DIR.mkdir(parents=True, exist_ok=True)
 
 class Encoder(nn.Module):
@@ -212,7 +213,7 @@ def save_samples_plot(sampled_ims, im_means, model, epoch, z_dim):
     with torch.no_grad():
         n_rows = int(np.sqrt(sampled_ims.size()[0]))
         
-        sampled_ims_path = SAMPLES_DIR / f'{model.__class__.__name__}_epoch_{epoch:03d}_z_dim_{z_dim:02d}_binary.png'
+        sampled_ims_path = SAMPLES_DIR / f'{model.__class__.__name__}_z_dim_{z_dim:02d}_epoch_{epoch:02d}_binary.png'
         sampled_ims = make_grid(sampled_ims, nrow=n_rows)
         sampled_ims = sampled_ims.cpu().numpy().transpose(1, 2, 0)
         plt.imshow(sampled_ims, interpolation='nearest')
@@ -221,7 +222,7 @@ def save_samples_plot(sampled_ims, im_means, model, epoch, z_dim):
         plt.savefig(sampled_ims_path)
         plt.close()
 
-        im_means_path = SAMPLES_DIR / f'{model.__class__.__name__}_epoch_{epoch:03d}_z_dim_{z_dim:02d}_mean.png'
+        im_means_path = SAMPLES_DIR / f'{model.__class__.__name__}_z_dim_{z_dim:02d}_epoch_{epoch:02d}_mean.png'
         im_means = make_grid(im_means, nrow =n_rows)
         im_means = im_means.cpu().numpy().transpose(1, 2, 0)
         plt.imshow(im_means, interpolation='nearest')
@@ -241,7 +242,7 @@ def main():
         train_elbo, val_elbo = elbos
         train_curve.append(train_elbo)
         val_curve.append(val_elbo)
-        print(f"[Epoch {epoch}] train elbo: {train_elbo} val_elbo: {val_elbo}")
+        print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] Epoch {epoch:02d}, train elbo: {train_elbo:07f}, val_elbo: {val_elbo:07f}')
 
         # --------------------------------------------------------------------
         #  Add functionality to plot samples from model during training.
@@ -271,8 +272,15 @@ def main():
     #  functionality that is already imported.
     # --------------------------------------------------------------------
     if ARGS.zdim == 2:
-        sampled_ims, im_means = model.sample_manifold(10)
-        save_samples_plot(sampled_ims, im_means, model, epoch, ARGS.zdim)
+        # create data manifold
+        n_rows = 20
+        x = y = np.linspace(0, 1, n_rows)
+        samples = [torch.erfinv(2 * torch.tensor([x, y], device='cpu') - 1) * np.sqrt(2) for x in x for y in y]
+        samples = torch.stack(samples)
+
+        manifold = model.decoder(samples).view(-1, 1, 28, 28)
+        grid = make_grid(manifold, nrow=n_rows)
+        plt.imsave(RESULTS_DIR / 'VAE_manifold.png', grid.cpu().numpy().transpose(1, 2, 0))
 
     plot_path = RESULTS_DIR / f'{model.__class__.__name__}_elbo.png'
     save_elbo_plot(train_curve, val_curve, plot_path)
